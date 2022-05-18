@@ -23,7 +23,7 @@ alpine: alpine.img
 	mkdir -p $*.dir
 	tar -xvf $*.tar -C $*.dir
 
-%.img: builder %.dir
+%.img: builder %.tar
 	@echo ${COL_GRN}"[Create $* disk image]"${COL_END}
 	docker run -it \
 		-v `pwd`:/os:rw \

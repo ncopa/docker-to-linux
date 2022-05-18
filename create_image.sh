@@ -31,10 +31,10 @@ mkfs.vfat -n EFI $efipart
 echo_blue "\n[Format root partition with ext4]"
 mkfs.ext4 -L ROOTFS $rootpart
 
-echo_blue "[Copy ${DISTR} directory structure to partition]"
+echo_blue "[Extract ${DISTR}.tar to partition]"
 mkdir -p /os/mnt
 mount -t ext4 $rootpart /os/mnt/
-cp -R /os/${DISTR}.dir/. /os/mnt/
+tar -C /os/mnt -xf /os/${DISTR}.tar
 
 echo_blue "[Setup grub]"
 mkdir -p /os/mnt/boot/efi /os/mnt/boot/grub
