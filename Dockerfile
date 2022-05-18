@@ -1,5 +1,4 @@
-FROM amd64/debian:bullseye
+FROM alpine:3.15
 LABEL com.iximiuz-project="docker-to-linux"
-RUN apt-get -y update
-RUN apt-get -y install extlinux fdisk qemu-utils
+RUN apk add --no-cache grub-efi sfdisk qemu-img e2fsprogs dosfstools
 

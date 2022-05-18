@@ -30,7 +30,7 @@ alpine: alpine.img
 		-e DISTR=$* \
 		--privileged \
 		--cap-add SYS_ADMIN \
-		${REPO}/builder bash /os/create_image.sh
+		${REPO}/builder sh /os/create_image.sh
 
 .PHONY:
 builder:

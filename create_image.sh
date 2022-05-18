@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
@@ -11,33 +11,48 @@ echo_blue() {
 }
 
 echo_blue "[Create disk image]"
-dd if=/dev/zero of=/os/${DISTR}.img bs=$(expr 1024 \* 1024 \* 1024) count=1
+qemu-img create -f raw /os/${DISTR}.img 1G
+
+LOOPDEVICE=$(losetup -f)
+losetup -P ${LOOPDEVICE} /os/${DISTR}.img
+trap "echo_blue '[Close ${LOOPDEVICE}]'; losetup -d ${LOOPDEVICE}" EXIT
+
+echo -e "\n[Using ${LOOPDEVICE} loop device]"
 
 echo_blue "[Make partition]"
-sfdisk /os/${DISTR}.img < /os/partition.txt
+sfdisk ${LOOPDEVICE} < /os/partition.txt
+mdev -s
 
-echo_blue "\n[Format partition with ext4]"
-losetup -D
-LOOPDEVICE=$(losetup -f)
-echo -e "\n[Using ${LOOPDEVICE} loop device]"
-losetup -o $(expr 512 \* 2048) ${LOOPDEVICE} /os/${DISTR}.img
-mkfs.ext4 ${LOOPDEVICE}
+efipart=${LOOPDEVICE}p1
+rootpart=${LOOPDEVICE}p2
+
+echo_blue "\n[Format efi partition with vfat]"
+mkfs.vfat -n EFI $efipart
+echo_blue "\n[Format root partition with ext4]"
+mkfs.ext4 -L ROOTFS $rootpart
 
 echo_blue "[Copy ${DISTR} directory structure to partition]"
 mkdir -p /os/mnt
-mount -t auto ${LOOPDEVICE} /os/mnt/
+mount -t ext4 $rootpart /os/mnt/
 cp -R /os/${DISTR}.dir/. /os/mnt/
 
-echo_blue "[Setup extlinux]"
-extlinux --install /os/mnt/boot/
-cp /os/${DISTR}/syslinux.cfg /os/mnt/boot/syslinux.cfg
+echo_blue "[Setup grub]"
+mkdir -p /os/mnt/boot/efi /os/mnt/boot/grub
+cp /os/${DISTR}/grub.cfg /os/mnt/boot/grub/syslinux.cfg
+mount -t vfat $efipart /os/mnt/boot/efi
+
+mkdir -p /os/mnt/boot/efi/EFI/boot
+grub-mkimage \
+	--format=arm64-efi \
+	--output=/os/mnt/boot/efi/EFI/boot/bootaa64.efi \
+	--compression=xz \
+	--prefix="/boot/grub" \
+	--config=/os/${DISTR}/grub.cfg \
+	all_video disk part_gpt linux normal search search_label efi_gop ext2 gzio
 
 echo_blue "[Unmount]"
+umount /os/mnt/boot/efi
 umount /os/mnt
-losetup -D
-
-echo_blue "[Write syslinux MBR]"
-dd if=/usr/lib/syslinux/mbr/mbr.bin of=/os/${DISTR}.img bs=440 count=1 conv=notrunc
 
 echo_blue "[Convert to qcow2]"
 qemu-img convert -c /os/${DISTR}.img -O qcow2 /os/${DISTR}.qcow2
