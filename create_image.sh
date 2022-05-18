@@ -40,15 +40,21 @@ echo_blue "[Setup grub]"
 mkdir -p /os/mnt/boot/efi /os/mnt/boot/grub
 cp /os/${DISTR}/grub.cfg /os/mnt/boot/grub/syslinux.cfg
 mount -t vfat $efipart /os/mnt/boot/efi
-
 mkdir -p /os/mnt/boot/efi/EFI/boot
+
+: ${ARCH:=$(uname -m)}
+case "${ARCH}" in
+    aarch64) format=arm64-efi; bootefi=bootaa64.efi;;
+    x86_64) format=x86_64-efi; bootefi=bootx64.efi;;
+esac
+
 grub-mkimage \
-	--format=arm64-efi \
-	--output=/os/mnt/boot/efi/EFI/boot/bootaa64.efi \
-	--compression=xz \
-	--prefix="/boot/grub" \
-	--config=/os/${DISTR}/grub.cfg \
-	all_video disk part_gpt linux normal search search_label efi_gop ext2 gzio
+    --format="$format" \
+    --output=/os/mnt/boot/efi/EFI/boot/"$bootefi" \
+    --compression=xz \
+    --prefix="/boot/grub" \
+    --config=/os/${DISTR}/grub.cfg \
+    all_video disk part_gpt linux normal search search_label efi_gop ext2 gzio
 
 echo_blue "[Unmount]"
 umount /os/mnt/boot/efi
